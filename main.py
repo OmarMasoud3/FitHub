@@ -20,9 +20,6 @@ from forms import (
     ContactForm
 )
 
-# LOAD ENVIRONMENT VARIABLES
-load_dotenv()
-
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY')
 ckeditor = CKEditor(app)
