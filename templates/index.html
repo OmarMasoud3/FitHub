@@ -28,7 +28,7 @@
           <h3 class="post-subtitle">{{ post.subtitle }}</h3>
           <img src= {{ post.img_url }} alt= {{ post.title }} style="max-width: 100%; height: auto;" >
         </a>
-        <p class="post-meta">
+        <p class="post-meta mt-1">
           Posted by
           <a href="{{ url_for('about') }}">{{post.author.name}}</a>
           on {{post.date}}
