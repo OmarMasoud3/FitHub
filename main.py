@@ -50,11 +50,11 @@ gravatar = Gravatar(app,
                     base_url=None)
 
 # CONNECT TO DB
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DB_URI", "sqlite:///posts.db")
-app.config['SQLALCHEMY_BINDS'] = {
-    'database2': 'sqlite:///user.db',
-    'database3': 'sqlite:///comment.db'
-}
+app.config['SQLALCHEMY_DATABASE_URI'] = "postgresql://db_clhj_user:rsHxUJCOLC8BnMsKG7vhsVQ4EgLoyscl@dpg-cjbss5fdb61s73827akg-a/db_clhj"
+# app.config['SQLALCHEMY_BINDS'] = {
+#     'database2': 'sqlite:///user.db',
+#     'database3': 'sqlite:///comment.db'
+# }
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
