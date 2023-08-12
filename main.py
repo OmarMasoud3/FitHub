@@ -49,9 +49,15 @@ gravatar = Gravatar(app,
                     use_ssl=False,
                     base_url=None)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///posts.db'
-db = SQLAlchemy()
-db.init_app(app)
+# CONNECT TO DB
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DB_URI", "sqlite:///posts.db")
+app.config['SQLALCHEMY_BINDS'] = {
+    'database2': 'sqlite:///user.db',
+    'database3': 'sqlite:///comment.db'
+}
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
+migrate = Migrate(app, db)
 
 # MY CREDENTIALS FOR TWILIO API
 MY_EMAIL = os.environ.get('EMAIL', ' ')
@@ -66,7 +72,7 @@ def admin_only(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         # If id is not 1 then return abort with 403 error
-        if current_user.id != 1:
+        if not db.session.execute(db.select(User).where(User.email == "admin@email.com")):
             return abort(403)
         # Otherwise continue with the route function
         return f(*args, **kwargs)
@@ -239,4 +245,4 @@ def about():
 
 
 if __name__ == "__main__":
-    app.run(debug=False)
+    app.run(debug=True)
