@@ -9,6 +9,14 @@ from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_migrate import Migrate
 import os
+from flask_login import UserMixin
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.orm import relationship
+from config import (
+    SQLALCHEMY_DATABASE_URI_MAIN,
+    SQLALCHEMY_DATABASE_URI_SECONDARY,
+    SQLALCHEMY_DATABASE_URI_THIRD
+)
 
 # Importing FORMS
 from forms import (
@@ -27,16 +35,69 @@ from databases import (
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'vmksmviosddi9ef9ejf9ud9hsn'
 ckeditor = CKEditor(app)
-boostrap = Bootstrap4(app)
+bootstrap = Bootstrap4(app)
+
+# DB config
+app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:///posts.db"
+app.config['SQLALCHEMY_BINDS'] = {
+    'user': "sqlite:///user.db",
+    'comment': "sqlite:///comment.db"
+}
+db = SQLAlchemy(app)
+migrate = Migrate(app, db)
 
 # Configure Flask-Login
 login_manager = LoginManager()
 login_manager.init_app(app)
 
 
+class BlogPost(db.Model):
+    __tablename__ = "blog_posts"
+    id = db.Column(db.Integer, primary_key=True)
+    # Create Foreign Key, "users.id" the users refers to the tablename of User.
+    author_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    # Create reference to the User object. The "posts" refers to the posts property in the User class.
+    author = db.relationship("User", back_populates="posts")
+    title = db.Column(db.String(250), unique=True, nullable=False)
+    subtitle = db.Column(db.String(250), nullable=False)
+    date = db.Column(db.String(250), nullable=False)
+    body = db.Column(db.Text, nullable=False)
+    img_url = db.Column(db.String(250), nullable=False)
+    # Parent db.relationship to the comments
+    comments = db.relationship("Comment", back_populates="parent_post")
+
+
+# Create a User table for all your registered users
+class User(UserMixin, db.Model):
+    __tablename__ = "users"
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(100), unique=True)
+    password = db.Column(db.String(100))
+    name = db.Column(db.String(100))
+    # This will act like a list of BlogPost objects attached to each User.
+    # The "author" refers to the author property in the BlogPost class.
+    posts = db.relationship("BlogPost", back_populates="author")
+    # Parent db.relationship: "comment_author" refers to the comment_author property in the Comment class.
+    comments = db.relationship("Comment", back_populates="comment_author")
+
+
+# Create a table for the comments on the blog posts
+class Comment(db.Model):
+    __tablename__ = "comments"
+    id = db.Column(db.Integer, primary_key=True)
+    text = db.Column(db.Text, nullable=False)
+    # Child db.relationship:"users.id" The users refers to the tablename of the User class.
+    # "comments" refers to the comments property in the User class.
+    author_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    comment_author = db.relationship("User", back_populates="comments")
+    # Child db.relationship to the BlogPosts
+    post_id = db.Column(db.Integer, db.ForeignKey("blog_posts.id"))
+    parent_post = db.relationship("BlogPost", back_populates="comments")
+
+
 @login_manager.user_loader
 def load_user(user_id):
-    return db.get_or_404(User, user_id)
+    return User.query.get(int(user_id))
 
 
 # FOR ADDING PROFILE PICTURES IN THE COMMENT SECTION
@@ -49,22 +110,12 @@ gravatar = Gravatar(app,
                     use_ssl=False,
                     base_url=None)
 
-# CONNECT TO DB
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DB_URI", "sqlite:///posts.db")
-app.config['SQLALCHEMY_BINDS'] = {
-    'database2': 'sqlite:///user.db',
-    'database3': 'sqlite:///comment.db'
-}
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-db = SQLAlchemy(app)
-migrate = Migrate(app, db)
-
 # MY CREDENTIALS FOR TWILIO API
 MY_EMAIL = os.environ.get('EMAIL', ' ')
 MY_PASSWORD = os.environ.get('EMAIL', ' ')
 
-with app.app_context():
-    db.create_all()
+# with app.app_context():
+#     db.create_all()
 
 
 # CREATING AN ADMIN ONLY DECORATOR
@@ -72,7 +123,7 @@ def admin_only(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         # If id is not 1 then return abort with 403 error
-        if not db.session.execute(db.select(User).where(User.email == "admin@email.com")):
+        if current_user.id != 1:
             return abort(403)
         # Otherwise continue with the route function
         return f(*args, **kwargs)
@@ -245,4 +296,4 @@ def about():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=False)
